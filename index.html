@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rekap RFID Pallet</title>
+<link rel="stylesheet" href="style.css">
+<script src="excel.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header><div class="brand"><span class="mark" aria-hidden="true">▥</span> Monitoring Pallet</div><span class="local">Penyimpanan lokal</span></header>
+<main>
+<h1>Rekap RFID Pallet</h1>
+<p class="intro">Catat posisi pallet menggunakan scanner handheld.</p>
+<div class="layout">
+<section class="panel">
+<h2>Pencatatan pallet</h2>
+<label for="date">Tanggal observasi</label>
+<input id="date" type="date" required>
+<fieldset id="areas">
+<legend>Area pallet</legend>
+<label class="option"><input type="radio" name="area" value="SHIPPING"><span><strong class="shipping">SHIPPING</strong><small>Inside MAJ</small></span></label>
+<label class="option"><input type="radio" name="area" value="EMPTY"><span><strong class="empty">EMPTY</strong><small>Inside MAJ</small></span></label>
+<label class="option"><input type="radio" name="area" value="CUSTOMER"><span><strong class="customer">CUSTOMER</strong><small>Outside MAJ</small></span></label>
+</fieldset>
+<form id="scan">
+<label for="rfid">Kode RFID / EPC</label>
+<div class="scan-line"><input id="rfid" placeholder="Pilih area terlebih dahulu" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" required disabled><button id="save" disabled>Simpan</button></div>
+<details id="metadata">
+<summary>Detail pallet / customer</summary>
+<div class="details-grid">
+<div><label for="palletNo">No. Pallet</label><input id="palletNo" maxlength="32" placeholder="Otomatis jika terdaftar"></div>
+<div><label for="palletType">Type</label><input id="palletType" maxlength="32" placeholder="Otomatis jika terdaftar"></div>
+</div>
+<label for="customer">Customer</label>
+<input id="customer" maxlength="80" placeholder="Opsional untuk area CUSTOMER">
+<p class="hint">Untuk tag baru, isi detail sebelum scan agar ikut tersimpan.</p>
+</details>
+<p class="hint">Gunakan mode Keyboard Wedge / HID dengan akhiran Enter. Kode juga bisa diketik manual.</p>
+</form>
+<p id="status" role="status">Pilih area untuk mengaktifkan scanner.</p>
+</section>
+<section class="panel report">
+<div class="heading"><h2>Rekap harian</h2><button id="export" class="secondary" disabled>↓ Ekspor Excel</button></div>
+<p class="hint" id="reportDate"></p>
+<div class="stats" id="stats"></div>
+<div class="table-wrap"><table><thead><tr><th scope="col">NO</th><th scope="col">HARI/TANGGAL</th><th scope="col">NO. PALLET</th><th scope="col">NO. RFID</th><th scope="col">TYPE</th><th scope="col">CUSTOMER</th><th scope="col">AREA</th></tr></thead><tbody id="rows"></tbody></table></div>
+</section>
+</div>
+</main>
+</body>
+</html>
