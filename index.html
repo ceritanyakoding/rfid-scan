@@ -24,6 +24,7 @@
 <label class="option"><input type="radio" name="area" value="EMPTY"><span><strong class="empty">EMPTY</strong><small>Inside MAJ</small></span></label>
 <label class="option"><input type="radio" name="area" value="CUSTOMER"><span><strong class="customer">CUSTOMER</strong><small>Outside MAJ</small></span></label>
 </fieldset>
+<div class="mode-line"><label for="bulk">Bulk Scan</label><input id="bulk" type="checkbox" role="switch"></div>
 <form id="scan">
 <label for="rfid">Kode RFID / EPC</label>
 <div class="scan-line"><input id="rfid" placeholder="Pilih area terlebih dahulu" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" required disabled><button id="save" disabled>Simpan</button></div>
@@ -39,6 +40,11 @@
 </details>
 <p class="hint">Gunakan mode Keyboard Wedge / HID dengan akhiran Enter. Kode juga bisa diketik manual.</p>
 </form>
+<div id="batch" hidden>
+<div class="heading"><h3>Antrean <span id="pendingCount">0</span></h3><button type="button" class="secondary" id="clearBatch" disabled>Kosongkan</button></div>
+<ul id="pendingList" aria-label="Tag dalam antrean"></ul>
+<button type="button" id="saveBatch" disabled>Simpan semua</button>
+</div>
 <p id="status" role="status">Pilih area untuk mengaktifkan scanner.</p>
 </section>
 <section class="panel report">

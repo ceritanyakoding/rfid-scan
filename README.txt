@@ -21,3 +21,11 @@ Nomor pallet dan type untuk keenam RFID tersebut terisi otomatis.
 Untuk RFID lain, buka Detail pallet / customer sebelum scan bila ingin
 menambahkan nomor pallet, type, atau nama customer. Nama customer dapat
 digunakan untuk scan area CUSTOMER dan dipakai hingga area diganti.
+
+BULK SCAN
+Pilih tanggal dan area, aktifkan Bulk Scan, lalu pindai tag berurutan.
+Setiap kode harus diakhiri Enter. Kode ganda di antrean hanya dihitung
+sekali. Hapus tag yang salah atau kosongkan antrean, lalu pilih Simpan
+semua. Tanggal dan area terkunci selama antrean berisi tag. Antrean
+bersifat sementara hingga disimpan. Untuk handheld yang mengirim EPC
+gabungan tanpa Enter per tag, diperlukan penyesuaian sesuai model reader.

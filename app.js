@@ -24,6 +24,12 @@ const initialRecords = ["0008", "0017", "0014", "0034", "0060", "0019"].map((num
 }));
 const master = new Map(initialRecords.map(record => [record.rfid, record]));
 let area = "";
+let savingBatch = false;
+const pending = new Map();
+const bulk = document.getElementById("bulk");
+const saveBatch = document.getElementById("saveBatch");
+const clearBatch = document.getElementById("clearBatch");
+const areaControls = document.getElementById("areas");
 
 function readRecords() {
   const saved = JSON.parse(localStorage.getItem(key) ?? "[]");
@@ -79,8 +85,10 @@ function render() {
 
   for (const [index, record] of records.entries()) {
     const row = rows.insertRow();
-    for (const value of reportRow(record, index)) {
-      row.insertCell().textContent = value;
+    for (const [column, value] of reportRow(record, index).entries()) {
+      const cell = row.insertCell();
+      cell.dataset.label = columns[column];
+      cell.textContent = value;
     }
   }
   exportButton.disabled = false;
@@ -119,9 +127,98 @@ date.addEventListener("change", () => {
   refresh();
 });
 
-document.getElementById("scan").addEventListener("submit", event => {
+function renderBatch() {
+  const count = pending.size;
+  document.getElementById("batch").hidden = !bulk.checked;
+  document.getElementById("pendingCount").textContent = count;
+  date.disabled = areaControls.disabled = bulk.disabled = Boolean(count);
+  field.disabled = save.disabled = savingBatch || !area || !date.value || !date.validity.valid;
+  saveBatch.disabled = clearBatch.disabled = !count || savingBatch;
+  save.textContent = bulk.checked ? "Tambah" : "Simpan";
+  const list = document.getElementById("pendingList");
+  list.replaceChildren();
+  for (const rfid of [...pending.keys()].reverse()) {
+    const item = document.createElement("li");
+    const code = document.createElement("span");
+    code.textContent = rfid;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "secondary";
+    remove.textContent = "Hapus";
+    remove.setAttribute("aria-label", "Hapus " + rfid);
+    remove.disabled = savingBatch;
+    remove.addEventListener("click", () => {
+      pending.delete(rfid);
+      renderBatch();
+      field.focus();
+    });
+    item.append(code, remove);
+    list.append(item);
+  }
+}
+
+async function storeObservations(entries, observationDate, observationArea) {
+  const commit = () => {
+    const records = readRecords();
+    let changed = 0;
+    for (const [rfid, details] of entries) {
+      const index = records.findIndex(record => record.date === observationDate && record.rfid === rfid);
+      const previous = records[index];
+      const known = records.find(record => record.rfid === rfid && (record.palletNo || record.type)) ?? master.get(rfid);
+      if (previous?.area === observationArea && !details.number && !details.type && !details.customer) continue;
+      const record = {
+        date: observationDate, rfid, area: observationArea, updated: Date.now(),
+        palletNo: details.number || previous?.palletNo || known?.palletNo || "",
+        type: details.type || previous?.type || known?.type || "",
+        customer: observationArea === "CUSTOMER"
+          ? details.customer || (previous?.area === "CUSTOMER" ? previous.customer : "") || ""
+          : ""
+      };
+      if (previous) records[index] = record;
+      else records.push(record);
+      changed++;
+    }
+    if (changed) localStorage.setItem(key, JSON.stringify(records));
+    return changed;
+  };
+  return navigator.locks ? navigator.locks.request(key, commit) : commit();
+}
+
+bulk.addEventListener("change", () => {
+  renderBatch();
+  if (!field.disabled) field.focus();
+});
+
+clearBatch.addEventListener("click", () => {
+  if (!window.confirm("Kosongkan semua tag yang belum disimpan?")) return;
+  pending.clear();
+  renderBatch();
+  announce("Antrean dikosongkan.");
+  field.focus();
+});
+
+saveBatch.addEventListener("click", async () => {
+  if (!pending.size || savingBatch) return;
+  savingBatch = true;
+  renderBatch();
+  const total = pending.size;
+  try {
+    const changed = await storeObservations(pending, date.value, area);
+    pending.clear();
+    announce(changed + " tersimpan · " + (total - changed) + " sudah tercatat di " + area + ".", "ok");
+    refresh();
+  } catch {
+    announce("Gagal menyimpan. Antrean masih tersedia untuk dicoba lagi.", "error");
+  } finally {
+    savingBatch = false;
+    renderBatch();
+    field.focus();
+  }
+});
+
+document.getElementById("scan").addEventListener("submit", async event => {
   event.preventDefault();
-  if (!areas.includes(area) || !date.value || !date.validity.valid) return;
+  if (savingBatch || !areas.includes(area) || !date.value || !date.validity.valid) return;
 
   const rfid = field.value.trim().toUpperCase();
   if (!/^[A-Z0-9_-]{1,128}$/.test(rfid)) {
@@ -130,50 +227,36 @@ document.getElementById("scan").addEventListener("submit", event => {
     return;
   }
 
-  try {
-    const commit = () => {
-      const records = readRecords();
-      const index = records.findIndex(record => record.date === observationDate && record.rfid === rfid);
-      const previous = records[index];
-      const known = master.get(rfid) ?? records.find(record => record.rfid === rfid && (record.palletNo || record.type));
-      const number = details.number || known?.palletNo;
-      const type = details.type || known?.type;
-      const customerName = observationArea === "CUSTOMER"
-        ? details.customer || (previous?.area === "CUSTOMER" ? previous.customer : "") || ""
-        : "";
-      if (previous?.area === observationArea && !details.number && !details.type && !details.customer) {
-        return rfid + " sudah tercatat di " + observationArea + ".";
-      }
-      const record = {
-        date: observationDate, rfid, area: observationArea, updated: Date.now(),
-        palletNo: number || previous?.palletNo || "",
-        type: type || previous?.type || "",
-        customer: customerName
-      };
-      if (previous) records[index] = record;
-      else records.push(record);
-      localStorage.setItem(key, JSON.stringify(records));
-      return previous && previous.area !== observationArea ? rfid + " dipindahkan dari " + previous.area + " ke " + observationArea + "."
-        : rfid + " tersimpan di " + observationArea + ".";
-    };
+  const details = {number: palletNo.value.trim(), type: palletType.value.trim(), customer: customer.value.trim()};
+  field.value = "";
+  field.focus();
+  if (bulk.checked && pending.has(rfid)) {
+    announce(rfid + " sudah ada di antrean.");
+    return;
+  }
 
-    const observationDate = date.value;
-    const observationArea = area;
-    const details = {number: palletNo.value.trim(), type: palletType.value.trim(), customer: customer.value.trim()};
-    palletNo.value = "";
-    palletType.value = "";
-    field.value = "";
-    field.focus();
-    const result = navigator.locks ? navigator.locks.request(key, commit) : Promise.resolve(commit());
-    result.then(message => {
-      announce(message, "ok");
-      refresh();
-    }).catch(() => {
-      announce("Gagal menyimpan " + rfid + ". Periksa penyimpanan browser lalu scan ulang.", "error");
-    });
+  palletNo.value = "";
+  palletType.value = "";
+  if (bulk.checked) {
+    pending.set(rfid, details);
+    renderBatch();
+    announce(rfid + " masuk antrean.", "ok");
+    return;
+  }
+
+  try {
+    const changed = await storeObservations([[rfid, details]], date.value, area);
+    announce(rfid + (changed ? " tersimpan." : " sudah tercatat di area ini."), "ok");
+    refresh();
   } catch {
     announce("Gagal menyimpan " + rfid + ". Periksa penyimpanan browser lalu scan ulang.", "error");
   }
+});
+
+window.addEventListener("beforeunload", event => {
+  if (!pending.size) return;
+  event.preventDefault();
+  event.returnValue = "";
 });
 
 exportButton.addEventListener("click", () => {
